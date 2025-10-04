@@ -13,9 +13,11 @@ import { supabase } from '@/lib/supabase';
 import { useSubscription } from '@/hooks/useSubscription';
 import { SubscriptionPlan } from '@/types/monetization';
 import SubscriptionCard from '@/components/SubscriptionCard';
+import { useTheme } from '@/hooks/useTheme';
 
 export default function SubscriptionScreen() {
   const { subscription, plan, usageLimits, loading } = useSubscription();
+  const { colors, isDark } = useTheme();
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
 
@@ -42,8 +44,8 @@ export default function SubscriptionScreen() {
     if (selectedPlan.name === plan?.name) return;
 
     Alert.alert(
-      'Payment Integration Required',
-      'This feature requires payment integration. In production, this would connect to a payment provider like Stripe or RevenueCat.',
+      'Betalingsintegration påkrævet',
+      'Denne funktion kræver betalingsintegration. I produktion ville dette forbinde til en betalingsudbyder som Stripe eller RevenueCat.',
       [{ text: 'OK' }]
     );
   };
@@ -53,20 +55,20 @@ export default function SubscriptionScreen() {
     : 0;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
+        <View style={[styles.header, { backgroundColor: colors.cardBackground }]}>
           <Crown size={32} color="#F59E0B" />
-          <Text style={styles.title}>Upgrade Your Experience</Text>
-          <Text style={styles.subtitle}>
-            Get more pings, advanced features, and priority placement
+          <Text style={[styles.title, { color: colors.text }]}>Opgrader din oplevelse</Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+            Få flere pings, avancerede funktioner og prioriteret placering
           </Text>
         </View>
 
         {!loading && plan && (
-          <View style={styles.currentPlanCard}>
+          <View style={[styles.currentPlanCard, { backgroundColor: colors.cardBackground, borderColor: '#F97316' }]}>
             <View style={styles.currentPlanHeader}>
-              <Text style={styles.currentPlanTitle}>Current Plan</Text>
+              <Text style={[styles.currentPlanTitle, { color: colors.textSecondary }]}>Nuværende Plan</Text>
               <View style={styles.planBadge}>
                 <Text style={styles.planBadgeText}>{plan.display_name}</Text>
               </View>
@@ -76,16 +78,16 @@ export default function SubscriptionScreen() {
               <View style={styles.usageSection}>
                 <View style={styles.usageRow}>
                   <Zap size={18} color="#F97316" />
-                  <Text style={styles.usageLabel}>Daily Pings</Text>
+                  <Text style={[styles.usageLabel, { color: colors.text }]}>Daglige Pings</Text>
                 </View>
                 {plan.features.daily_pings === -1 ? (
-                  <Text style={styles.unlimitedText}>Unlimited</Text>
+                  <Text style={styles.unlimitedText}>Ubegrænset</Text>
                 ) : (
                   <>
-                    <Text style={styles.usageText}>
-                      {usageLimits.daily_pings_used} / {usageLimits.daily_pings_limit} used
+                    <Text style={[styles.usageText, { color: colors.textSecondary }]}>
+                      {usageLimits.daily_pings_used} / {usageLimits.daily_pings_limit} brugt
                     </Text>
-                    <View style={styles.progressBar}>
+                    <View style={[styles.progressBar, { backgroundColor: isDark ? '#2D3748' : '#E5E7EB' }]}>
                       <View
                         style={[styles.progressFill, { width: `${pingsUsedPercent}%` }]}
                       />
@@ -95,66 +97,66 @@ export default function SubscriptionScreen() {
               </View>
             )}
 
-            <View style={styles.featuresList}>
+            <View style={[styles.featuresList, { borderTopColor: colors.border }]}>
               <View style={styles.featureItem}>
                 <Text style={styles.featureBullet}>•</Text>
-                <Text style={styles.featureItemText}>
-                  {plan.features.visibility_radius_km}km visibility radius
+                <Text style={[styles.featureItemText, { color: colors.textSecondary }]}>
+                  {plan.features.visibility_radius_km}km synlighedsradius
                 </Text>
               </View>
               <View style={styles.featureItem}>
                 <Text style={styles.featureBullet}>•</Text>
-                <Text style={styles.featureItemText}>
+                <Text style={[styles.featureItemText, { color: colors.textSecondary }]}>
                   {plan.features.chat_duration_hours === -1
-                    ? 'Unlimited'
-                    : `${plan.features.chat_duration_hours}h`}{' '}
-                  chat duration
+                    ? 'Ubegrænset'
+                    : `${plan.features.chat_duration_hours}t`}{' '}
+                  chat varighed
                 </Text>
               </View>
               {plan.features.verification_badge && (
                 <View style={styles.featureItem}>
                   <Text style={styles.featureBullet}>•</Text>
-                  <Text style={styles.featureItemText}>Trusted Loonie badge</Text>
+                  <Text style={[styles.featureItemText, { color: colors.textSecondary }]}>Trusted Loonie badge</Text>
                 </View>
               )}
             </View>
           </View>
         )}
 
-        <View style={styles.billingToggle}>
+        <View style={[styles.billingToggle, { backgroundColor: isDark ? '#252538' : '#E5E7EB' }]}>
           <Pressable
             style={[
               styles.billingButton,
-              billingCycle === 'monthly' && styles.billingButtonActive,
+              billingCycle === 'monthly' && { backgroundColor: colors.cardBackground },
             ]}
             onPress={() => setBillingCycle('monthly')}
           >
             <Text
               style={[
                 styles.billingButtonText,
-                billingCycle === 'monthly' && styles.billingButtonTextActive,
+                { color: billingCycle === 'monthly' ? colors.text : colors.textSecondary },
               ]}
             >
-              Monthly
+              Månedligt
             </Text>
           </Pressable>
           <Pressable
             style={[
               styles.billingButton,
-              billingCycle === 'yearly' && styles.billingButtonActive,
+              billingCycle === 'yearly' && { backgroundColor: colors.cardBackground },
             ]}
             onPress={() => setBillingCycle('yearly')}
           >
             <Text
               style={[
                 styles.billingButtonText,
-                billingCycle === 'yearly' && styles.billingButtonTextActive,
+                { color: billingCycle === 'yearly' ? colors.text : colors.textSecondary },
               ]}
             >
-              Yearly
+              Årligt
             </Text>
             <View style={styles.saveBadge}>
-              <Text style={styles.saveText}>Save 17%</Text>
+              <Text style={styles.saveText}>Spar 17%</Text>
             </View>
           </Pressable>
         </View>
@@ -171,55 +173,55 @@ export default function SubscriptionScreen() {
           ))}
         </View>
 
-        <View style={styles.boostSection}>
+        <View style={[styles.boostSection, { backgroundColor: colors.cardBackground }]}>
           <View style={styles.boostHeader}>
             <Zap size={24} color="#F97316" />
-            <Text style={styles.boostTitle}>One-Time Boosts</Text>
+            <Text style={[styles.boostTitle, { color: colors.text }]}>Engangboosts</Text>
           </View>
-          <Text style={styles.boostSubtitle}>
-            Get instant visibility or extra pings without a subscription
+          <Text style={[styles.boostSubtitle, { color: colors.textSecondary }]}>
+            Få øjeblikkelig synlighed eller ekstra pings uden abonnement
           </Text>
 
           <View style={styles.boostOptions}>
-            <Pressable style={styles.boostCard}>
+            <Pressable style={[styles.boostCard, { backgroundColor: colors.inputBackground, borderColor: colors.border }]}>
               <Zap size={20} color="#F97316" />
-              <Text style={styles.boostCardTitle}>60min Top Placement</Text>
+              <Text style={[styles.boostCardTitle, { color: colors.text }]}>60min Top Placering</Text>
               <Text style={styles.boostCardPrice}>€2.99</Text>
-              <Text style={styles.boostCardDescription}>
-                Be at the top of the list for 1 hour
+              <Text style={[styles.boostCardDescription, { color: colors.textSecondary }]}>
+                Vær øverst på listen i 1 time
               </Text>
             </Pressable>
 
-            <Pressable style={styles.boostCard}>
+            <Pressable style={[styles.boostCard, { backgroundColor: colors.inputBackground, borderColor: colors.border }]}>
               <Zap size={20} color="#F97316" />
-              <Text style={styles.boostCardTitle}>5 Extra Pings</Text>
+              <Text style={[styles.boostCardTitle, { color: colors.text }]}>5 Ekstra Pings</Text>
               <Text style={styles.boostCardPrice}>€1.99</Text>
-              <Text style={styles.boostCardDescription}>
-                Use today when you need them
+              <Text style={[styles.boostCardDescription, { color: colors.textSecondary }]}>
+                Brug i dag når du har brug for dem
               </Text>
             </Pressable>
           </View>
         </View>
 
-        <View style={styles.safetySection}>
+        <View style={[styles.safetySection, { backgroundColor: isDark ? '#1E3A2E' : '#D1FAE5' }]}>
           <View style={styles.safetyHeader}>
             <Shield size={24} color="#10B981" />
-            <Text style={styles.safetyTitle}>Safety Pack Add-on</Text>
+            <Text style={[styles.safetyTitle, { color: isDark ? '#4ADE80' : '#065F46' }]}>Safety Pack Tilføjelse</Text>
           </View>
-          <Text style={styles.safetyDescription}>
-            SOS button, extended check-ins, and emergency center connection
+          <Text style={[styles.safetyDescription, { color: isDark ? '#86EFAC' : '#065F46' }]}>
+            SOS-knap, udvidede check-ins og nødcenter forbindelse
           </Text>
           <View style={styles.safetyPrice}>
-            <Text style={styles.safetyPriceText}>€3.99/month</Text>
+            <Text style={[styles.safetyPriceText, { color: isDark ? '#4ADE80' : '#065F46' }]}>€3.99/måned</Text>
             <Pressable style={styles.safetyButton}>
-              <Text style={styles.safetyButtonText}>Add to Plan</Text>
+              <Text style={styles.safetyButtonText}>Tilføj til Plan</Text>
             </Pressable>
           </View>
         </View>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            All plans include core features: see nearby people, send pings, and 24h chat
+          <Text style={[styles.footerText, { color: colors.textSecondary }]}>
+            Alle planer inkluderer kernefunktioner: se personer i nærheden, send pings og 24t chat
           </Text>
         </View>
       </ScrollView>
@@ -230,7 +232,6 @@ export default function SubscriptionScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
   },
   content: {
     flex: 1,
@@ -240,28 +241,23 @@ const styles = StyleSheet.create({
     paddingTop: 24,
     paddingHorizontal: 24,
     paddingBottom: 32,
-    backgroundColor: '#FFFFFF',
   },
   title: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#1F2937',
     marginTop: 16,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#6B7280',
     textAlign: 'center',
     lineHeight: 24,
   },
   currentPlanCard: {
-    backgroundColor: '#FFFFFF',
     margin: 16,
     padding: 20,
     borderRadius: 16,
     borderWidth: 2,
-    borderColor: '#F97316',
   },
   currentPlanHeader: {
     flexDirection: 'row',
@@ -272,7 +268,6 @@ const styles = StyleSheet.create({
   currentPlanTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6B7280',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -299,11 +294,9 @@ const styles = StyleSheet.create({
   usageLabel: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1F2937',
   },
   usageText: {
     fontSize: 14,
-    color: '#6B7280',
     marginBottom: 8,
   },
   unlimitedText: {
@@ -313,7 +306,6 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: 8,
-    backgroundColor: '#E5E7EB',
     borderRadius: 4,
     overflow: 'hidden',
   },
@@ -325,7 +317,6 @@ const styles = StyleSheet.create({
   featuresList: {
     gap: 8,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
     paddingTop: 16,
   },
   featureItem: {
@@ -341,14 +332,12 @@ const styles = StyleSheet.create({
   featureItemText: {
     flex: 1,
     fontSize: 14,
-    color: '#4B5563',
     lineHeight: 20,
   },
   billingToggle: {
     flexDirection: 'row',
     marginHorizontal: 16,
     marginBottom: 16,
-    backgroundColor: '#E5E7EB',
     borderRadius: 12,
     padding: 4,
   },
@@ -359,16 +348,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     position: 'relative',
   },
-  billingButtonActive: {
-    backgroundColor: '#FFFFFF',
-  },
   billingButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#6B7280',
-  },
-  billingButtonTextActive: {
-    color: '#1F2937',
   },
   saveBadge: {
     position: 'absolute',
@@ -388,7 +370,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   boostSection: {
-    backgroundColor: '#FFFFFF',
     margin: 16,
     padding: 20,
     borderRadius: 16,
@@ -402,11 +383,9 @@ const styles = StyleSheet.create({
   boostTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#1F2937',
   },
   boostSubtitle: {
     fontSize: 14,
-    color: '#6B7280',
     marginBottom: 20,
     lineHeight: 20,
   },
@@ -416,16 +395,13 @@ const styles = StyleSheet.create({
   },
   boostCard: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
   },
   boostCardTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1F2937',
     marginTop: 8,
     marginBottom: 4,
   },
@@ -437,11 +413,9 @@ const styles = StyleSheet.create({
   },
   boostCardDescription: {
     fontSize: 13,
-    color: '#6B7280',
     lineHeight: 18,
   },
   safetySection: {
-    backgroundColor: '#D1FAE5',
     margin: 16,
     padding: 20,
     borderRadius: 16,
@@ -455,11 +429,9 @@ const styles = StyleSheet.create({
   safetyTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#065F46',
   },
   safetyDescription: {
     fontSize: 15,
-    color: '#065F46',
     marginBottom: 16,
     lineHeight: 22,
   },
@@ -471,7 +443,6 @@ const styles = StyleSheet.create({
   safetyPriceText: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#065F46',
   },
   safetyButton: {
     backgroundColor: '#10B981',
@@ -490,7 +461,6 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 13,
-    color: '#9CA3AF',
     textAlign: 'center',
     lineHeight: 20,
   },

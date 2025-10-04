@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Check, Crown } from 'lucide-react-native';
 import { SubscriptionPlan } from '@/types/monetization';
+import { useTheme } from '@/hooks/useTheme';
 
 interface SubscriptionCardProps {
   plan: SubscriptionPlan;
@@ -16,51 +17,52 @@ export default function SubscriptionCard({
   onSelect,
   billingCycle,
 }: SubscriptionCardProps) {
+  const { colors } = useTheme();
   const price = billingCycle === 'monthly' ? plan.price_monthly : plan.price_yearly;
   const pricePerMonth = billingCycle === 'yearly' ? (plan.price_yearly / 12).toFixed(2) : price;
   const isPremium = plan.name !== 'free';
 
   const features = [
     plan.features.daily_pings === -1
-      ? 'Unlimited daily pings'
-      : `${plan.features.daily_pings} pings per day`,
-    `See people within ${plan.features.visibility_radius_km}km`,
+      ? 'Ubegrænsede daglige pings'
+      : `${plan.features.daily_pings} pings per dag`,
+    `Se personer inden for ${plan.features.visibility_radius_km}km`,
     plan.features.chat_duration_hours === -1
-      ? 'Unlimited chat duration'
-      : `${plan.features.chat_duration_hours}h chat window`,
-    ...(plan.features.advanced_filters ? ['Advanced activity filters'] : []),
-    ...(plan.features.priority_placement ? ['Priority list placement'] : []),
+      ? 'Ubegrænset chat varighed'
+      : `${plan.features.chat_duration_hours}t chat vindue`,
+    ...(plan.features.advanced_filters ? ['Avancerede aktivitetsfiltre'] : []),
+    ...(plan.features.priority_placement ? ['Prioriteret listeplacering'] : []),
     ...(plan.features.verification_badge ? ['"Trusted Loonie" badge'] : []),
-    `Groups up to ${plan.features.max_group_size} people`,
-    ...(plan.features.venue_discounts ? ['Partner venue discounts'] : []),
-    ...(plan.features.safety_pack ? ['Safety Pack included'] : []),
+    `Grupper op til ${plan.features.max_group_size} personer`,
+    ...(plan.features.venue_discounts ? ['Partner venue rabatter'] : []),
+    ...(plan.features.safety_pack ? ['Safety Pack inkluderet'] : []),
   ];
 
   return (
-    <View style={[styles.card, isPremium && styles.premiumCard]}>
+    <View style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: isPremium ? '#F97316' : colors.border }, isPremium && styles.premiumCard]}>
       {plan.name === 'plus' && (
         <View style={styles.popularBadge}>
-          <Text style={styles.popularText}>MOST POPULAR</Text>
+          <Text style={styles.popularText}>MEST POPULÆR</Text>
         </View>
       )}
 
       <View style={styles.header}>
         {isPremium && <Crown size={24} color="#F59E0B" />}
-        <Text style={styles.planName}>{plan.display_name}</Text>
+        <Text style={[styles.planName, { color: colors.text }]}>{plan.display_name}</Text>
       </View>
 
       <View style={styles.priceContainer}>
         {plan.name === 'free' ? (
-          <Text style={styles.price}>Free</Text>
+          <Text style={[styles.price, { color: colors.text }]}>Gratis</Text>
         ) : (
           <>
             <View style={styles.priceRow}>
-              <Text style={styles.currency}>€</Text>
-              <Text style={styles.price}>{pricePerMonth}</Text>
-              <Text style={styles.period}>/month</Text>
+              <Text style={[styles.currency, { color: colors.text }]}>€</Text>
+              <Text style={[styles.price, { color: colors.text }]}>{pricePerMonth}</Text>
+              <Text style={[styles.period, { color: colors.textSecondary }]}>/måned</Text>
             </View>
             {billingCycle === 'yearly' && (
-              <Text style={styles.billedYearly}>Billed €{price} yearly</Text>
+              <Text style={[styles.billedYearly, { color: colors.textSecondary }]}>Betales €{price} årligt</Text>
             )}
           </>
         )}
@@ -70,22 +72,22 @@ export default function SubscriptionCard({
         {features.map((feature, index) => (
           <View key={index} style={styles.featureRow}>
             <Check size={18} color="#10B981" />
-            <Text style={styles.featureText}>{feature}</Text>
+            <Text style={[styles.featureText, { color: colors.textSecondary }]}>{feature}</Text>
           </View>
         ))}
       </View>
 
       {isCurrentPlan ? (
         <View style={styles.currentPlanBadge}>
-          <Text style={styles.currentPlanText}>Current Plan</Text>
+          <Text style={styles.currentPlanText}>Nuværende Plan</Text>
         </View>
       ) : (
         <Pressable
-          style={[styles.selectButton, isPremium && styles.premiumButton]}
+          style={[styles.selectButton, { backgroundColor: isPremium ? '#F97316' : colors.inputBackground, borderColor: isPremium ? '#F97316' : colors.border }]}
           onPress={onSelect}
         >
-          <Text style={[styles.selectButtonText, isPremium && styles.premiumButtonText]}>
-            {plan.name === 'free' ? 'Downgrade' : 'Upgrade'}
+          <Text style={[styles.selectButtonText, { color: isPremium ? '#FFFFFF' : colors.textSecondary }]}>
+            {plan.name === 'free' ? 'Nedgrader' : 'Opgrader'}
           </Text>
         </Pressable>
       )}
@@ -95,15 +97,12 @@ export default function SubscriptionCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
     borderWidth: 2,
-    borderColor: '#E5E7EB',
   },
   premiumCard: {
-    borderColor: '#F97316',
     shadowColor: '#F97316',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
@@ -134,7 +133,6 @@ const styles = StyleSheet.create({
   planName: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#1F2937',
   },
   priceContainer: {
     marginBottom: 24,
@@ -146,21 +144,17 @@ const styles = StyleSheet.create({
   currency: {
     fontSize: 24,
     fontWeight: '600',
-    color: '#1F2937',
   },
   price: {
     fontSize: 40,
     fontWeight: '700',
-    color: '#1F2937',
   },
   period: {
     fontSize: 16,
-    color: '#6B7280',
     marginLeft: 4,
   },
   billedYearly: {
     fontSize: 14,
-    color: '#6B7280',
     marginTop: 4,
   },
   features: {
@@ -175,28 +169,17 @@ const styles = StyleSheet.create({
   featureText: {
     flex: 1,
     fontSize: 15,
-    color: '#4B5563',
     lineHeight: 22,
   },
   selectButton: {
-    backgroundColor: '#F9FAFB',
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  premiumButton: {
-    backgroundColor: '#F97316',
-    borderColor: '#F97316',
   },
   selectButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#6B7280',
-  },
-  premiumButtonText: {
-    color: '#FFFFFF',
   },
   currentPlanBadge: {
     backgroundColor: '#D1FAE5',
