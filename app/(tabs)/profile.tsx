@@ -1,16 +1,41 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Image, Switch } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Image, Switch, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Settings, CreditCard as Edit, LogOut, Star, Users, MapPin, Moon, Sun, Monitor } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
 import { useTranslation } from '@/hooks/useTranslation';
+import { supabase } from '@/lib/supabase';
 
 export default function ProfileScreen() {
   const { colors, theme, setTheme, isDark } = useTheme();
   const { t } = useTranslation();
+  const router = useRouter();
   const [notifications, setNotifications] = useState(true);
   const [locationSharing, setLocationSharing] = useState(true);
+
+  const handleSignOut = async () => {
+    Alert.alert(
+      t('profile.signOut'),
+      'Er du sikker på at du vil logge ud?',
+      [
+        { text: 'Annuller', style: 'cancel' },
+        {
+          text: 'Log ud',
+          style: 'destructive',
+          onPress: async () => {
+            const { error } = await supabase.auth.signOut();
+            if (error) {
+              Alert.alert('Fejl', error.message);
+            } else {
+              router.replace('/(auth)/signin');
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const stats = [
     { label: t('profile.statsLabels.connectionsMade'), value: '12', icon: Users },
@@ -135,7 +160,7 @@ export default function ProfileScreen() {
             <Text style={[styles.menuText, { color: colors.text }]}>{t('profile.settings')}</Text>
           </Pressable>
 
-          <Pressable style={styles.menuItem}>
+          <Pressable style={styles.menuItem} onPress={handleSignOut}>
             <LogOut size={20} color={colors.error} />
             <Text style={[styles.menuText, { color: colors.error }]}>{t('profile.signOut')}</Text>
           </Pressable>

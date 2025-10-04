@@ -123,6 +123,7 @@ export default function NearbyScreen() {
       if (!user.user) return;
 
       // Hent andre brugere fra profiles (undtagen dig selv)
+      // BEMÆRK: Kun brugere med profiler der matcher auth.users vil virke
       const { data: profiles, error } = await supabase
         .from('profiles')
         .select('id, first_name, age, photo_url')
@@ -130,26 +131,32 @@ export default function NearbyScreen() {
         .limit(10);
 
       if (error) {
-        console.error('Error loading nearby people:', error);
+        console.error('Error loading profiles:', error);
         return;
       }
 
-      if (profiles && profiles.length > 0) {
-        const nearbyList: NearbyPerson[] = profiles.map((profile, index) => ({
-          id: profile.id,
-          name: profile.first_name || 'Unknown',
-          age: profile.age || 25,
-          distance: 0.5 + (index * 0.3), // Mock distance
-          eta: `${5 + (index * 5)} min`,
-          activities: ['Dining', 'Sports'],
-          photo: profile.photo_url || 'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=400',
-          isOnline: true,
-        }));
-
-        setNearbyPeople(nearbyList);
+      // Hvis ingen andre brugere, vis demo data for testing
+      if (!profiles || profiles.length === 0) {
+        console.log('No other users found. Please create another user account to test ping functionality.');
+        setNearbyPeople([]);
+        return;
       }
+
+      const nearbyList: NearbyPerson[] = profiles.map((profile, index) => ({
+        id: profile.id,
+        name: profile.first_name || 'Unknown',
+        age: profile.age || 25,
+        distance: 0.5 + (index * 0.3),
+        eta: `${5 + (index * 5)} min`,
+        activities: ['Dining', 'Sports'],
+        photo: profile.photo_url || 'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=400',
+        isOnline: true,
+      }));
+
+      setNearbyPeople(nearbyList);
     } catch (err) {
       console.error('Error in loadNearbyPeople:', err);
+      setNearbyPeople([]);
     }
   };
 
