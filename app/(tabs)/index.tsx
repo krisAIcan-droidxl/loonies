@@ -1,10 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Image, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Coffee, MapPin, Clock, Zap, Map } from 'lucide-react-native';
+import { Coffee, MapPin, Clock, Check, MessageCircle } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
 import { useTranslation } from '@/hooks/useTranslation';
+import { supabase } from '@/lib/supabase';
+import { sendPing, acceptPing, ignorePing, getActivePings } from '@/lib/ping';
+import { formatTimeRemaining, getTimeRemaining } from '@/lib/time';
+import { Ping } from '@/types/ping';
+import PingIncomingModal from '@/components/PingIncomingModal';
 
 interface NearbyPerson {
   id: string;
@@ -20,33 +26,60 @@ interface NearbyPerson {
 export default function NearbyScreen() {
   const { colors } = useTheme();
   const { t } = useTranslation();
+  const router = useRouter();
+
   const [isAvailable, setIsAvailable] = useState(false);
-  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const [timeLeft, setTimeLeft] = useState(0);
+  const [currentUserId, setCurrentUserId] = useState<string>('');
+
+  // Ping states
+  const [sentPings, setSentPings] = useState<Map<string, Ping>>(new Map());
+  const [acceptedMatches, setAcceptedMatches] = useState<Map<string, string>>(new Map());
+  const [incomingPing, setIncomingPing] = useState<Ping | null>(null);
+  const [showPingModal, setShowPingModal] = useState(false);
+  const [pingCountdowns, setPingCountdowns] = useState<Map<string, string>>(new Map());
+
   const [nearbyPeople, setNearbyPeople] = useState<NearbyPerson[]>([
     {
-      id: '1',
+      id: '11111111-1111-1111-1111-111111111111',
       name: 'Sarah',
       age: 28,
       distance: 0.8,
-      eta: '10 min walk',
-      activities: ['coffee', 'reading'],
-      photo: 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=400',
+      eta: '10 min',
+      activities: ['Dining', 'Sports'],
+      photo: 'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=400',
       isOnline: true,
     },
     {
-      id: '2',
-      name: 'Alex',
-      age: 25,
+      id: '22222222-2222-2222-2222-222222222222',
+      name: 'Michael',
+      age: 32,
       distance: 1.2,
-      eta: '15 min walk',
-      activities: ['gaming', 'coffee'],
-      photo: 'https://images.pexels.com/photos/91227/pexels-photo-91227.jpeg?auto=compress&cs=tinysrgb&w=400',
+      eta: '15 min',
+      activities: ['Sports', 'Fitness'],
+      photo: 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=400',
+      isOnline: true,
+    },
+    {
+      id: '33333333-3333-3333-3333-333333333333',
+      name: 'Emma',
+      age: 25,
+      distance: 0.5,
+      eta: '7 min',
+      activities: ['Dining', 'Art'],
+      photo: 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=400',
       isOnline: true,
     },
   ]);
 
   useEffect(() => {
+    getCurrentUser();
+    loadActivePings();
+    setupRealtimeListeners();
+  }, []);
+
+  useEffect(() => {
+    // Availability countdown
     let interval: ReturnType<typeof setInterval> | undefined;
     if (isAvailable && timeLeft > 0) {
       interval = setInterval(() => {
@@ -62,14 +95,196 @@ export default function NearbyScreen() {
     return () => clearInterval(interval);
   }, [isAvailable, timeLeft]);
 
+  useEffect(() => {
+    // Ping countdowns
+    const interval = setInterval(() => {
+      const newCountdowns = new Map<string, string>();
+      sentPings.forEach((ping, userId) => {
+        const { isExpired } = getTimeRemaining(ping.expires_at);
+        if (isExpired) {
+          // Remove expired ping
+          setSentPings(prev => {
+            const newMap = new Map(prev);
+            newMap.delete(userId);
+            return newMap;
+          });
+        } else {
+          newCountdowns.set(userId, formatTimeRemaining(ping.expires_at));
+        }
+      });
+      setPingCountdowns(newCountdowns);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [sentPings]);
+
+  const getCurrentUser = async () => {
+    const { data } = await supabase.auth.getUser();
+    if (data.user) {
+      setCurrentUserId(data.user.id);
+    }
+  };
+
+  const loadActivePings = async () => {
+    const { data: pings } = await getActivePings();
+    if (pings) {
+      const pingsMap = new Map<string, Ping>();
+      const matchesMap = new Map<string, string>();
+
+      pings.forEach(ping => {
+        if (ping.from_user === currentUserId) {
+          // Sendte pings
+          pingsMap.set(ping.to_user, ping);
+          if (ping.status === 'accepted') {
+            // Match opretet (skal hentes fra matches tabel)
+            matchesMap.set(ping.to_user, 'match-id');
+          }
+        }
+      });
+
+      setSentPings(pingsMap);
+      setAcceptedMatches(matchesMap);
+    }
+  };
+
+  const setupRealtimeListeners = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    // Lyt efter indgående pings
+    const incomingChannel = supabase
+      .channel('incoming-pings')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'pings',
+          filter: `to_user=eq.${user.id}`,
+        },
+        async (payload) => {
+          const newPing = payload.new as Ping;
+
+          // Hent afsenderens profil
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('id, first_name, age, photo_url')
+            .eq('id', newPing.from_user)
+            .single();
+
+          if (profile) {
+            newPing.from_profile = profile;
+            setIncomingPing(newPing);
+            setShowPingModal(true);
+          }
+        }
+      )
+      .subscribe();
+
+    // Lyt efter ping status opdateringer (når nogen accepterer vores ping)
+    const updatesChannel = supabase
+      .channel('ping-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'pings',
+          filter: `from_user=eq.${user.id}`,
+        },
+        async (payload) => {
+          const updatedPing = payload.new as Ping;
+
+          if (updatedPing.status === 'accepted') {
+            // Hent det nyoprettede match
+            const { data: matches } = await supabase
+              .from('matches')
+              .select('*')
+              .or(`user_a.eq.${user.id},user_b.eq.${user.id}`)
+              .order('created_at', { ascending: false })
+              .limit(1);
+
+            if (matches && matches.length > 0) {
+              const match = matches[0];
+              setAcceptedMatches(prev => new Map(prev).set(updatedPing.to_user, match.id));
+
+              Alert.alert(
+                'Ping accepteret! 🎉',
+                'Din ping blev accepteret. Åbn chat for at snakke sammen!',
+                [
+                  { text: 'Senere', style: 'cancel' },
+                  { text: 'Åbn chat', onPress: () => router.push(`/chat/${match.id}`) },
+                ]
+              );
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(incomingChannel);
+      supabase.removeChannel(updatesChannel);
+    };
+  };
+
   const toggleAvailability = (minutes: number) => {
     setIsAvailable(true);
     setTimeLeft(minutes * 60);
   };
 
-  const sendPing = (person: NearbyPerson, activity: string) => {
-    // Handle ping sending logic
-    console.log(`Pinging ${person.name} for ${activity}`);
+  const handleSendPing = async (person: NearbyPerson) => {
+    if (sentPings.has(person.id)) {
+      Alert.alert('Ping allerede sendt', 'Du har allerede sendt et ping til denne person.');
+      return;
+    }
+
+    const { data, error } = await sendPing(person.id, 'coffee');
+
+    if (error) {
+      Alert.alert('Fejl', error.message);
+      return;
+    }
+
+    if (data) {
+      setSentPings(prev => new Map(prev).set(person.id, data));
+      Alert.alert('Ping sendt! ☕', `Dit kaffe ping er sendt til ${person.name}`);
+    }
+  };
+
+  const handleAcceptPing = async () => {
+    if (!incomingPing) return;
+
+    const { data: match, error } = await acceptPing(incomingPing.id);
+
+    if (error) {
+      Alert.alert('Fejl', error.message);
+      setShowPingModal(false);
+      return;
+    }
+
+    if (match) {
+      setShowPingModal(false);
+      Alert.alert(
+        'Ping accepteret! 🎉',
+        'Match oprettet! Chatten er åben i 30 minutter.',
+        [
+          { text: 'OK', onPress: () => router.push(`/chat/${match.id}`) },
+        ]
+      );
+    }
+  };
+
+  const handleIgnorePing = async () => {
+    if (!incomingPing) return;
+
+    await ignorePing(incomingPing.id);
+    setShowPingModal(false);
+    setIncomingPing(null);
+  };
+
+  const handleOpenChat = (matchId: string) => {
+    router.push(`/chat/${matchId}`);
   };
 
   const formatTime = (seconds: number) => {
@@ -78,19 +293,69 @@ export default function NearbyScreen() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const getPingButtonContent = (person: NearbyPerson) => {
+    const matchId = acceptedMatches.get(person.id);
+    const sentPing = sentPings.get(person.id);
+    const countdown = pingCountdowns.get(person.id);
+
+    if (matchId) {
+      // Match oprettet - vis "Åbn chat" knap
+      return (
+        <Pressable
+          style={styles.pingButton}
+          onPress={() => handleOpenChat(matchId)}
+        >
+          <LinearGradient
+            colors={['#10B981', '#059669']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.pingButtonGradient}
+          >
+            <MessageCircle size={16} color="#FFFFFF" />
+            <Text style={styles.pingButtonText}>Åbn chat</Text>
+          </LinearGradient>
+        </Pressable>
+      );
+    }
+
+    if (sentPing && countdown) {
+      // Ping sendt - vis status med countdown
+      return (
+        <View style={[styles.sentPingChip, { backgroundColor: colors.warningBackground }]}>
+          <Clock size={14} color={colors.warning} />
+          <Text style={[styles.sentPingText, { color: colors.warning }]}>
+            Ping sendt • {countdown}
+          </Text>
+        </View>
+      );
+    }
+
+    // Normal ping knap
+    return (
+      <Pressable
+        style={styles.pingButton}
+        onPress={() => handleSendPing(person)}
+      >
+        <LinearGradient
+          colors={colors.secondaryGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.pingButtonGradient}
+        >
+          <Coffee size={16} color="#FFFFFF" />
+          <Text style={styles.pingButtonText}>{t('nearby.pingForCoffee')}</Text>
+        </LinearGradient>
+      </Pressable>
+    );
+  };
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { backgroundColor: colors.cardBackground, borderBottomColor: colors.border }]}>
         <View style={styles.headerTop}>
           <Text style={[styles.title, { color: colors.text }]}>{t('nearby.title')}</Text>
-          <Pressable
-            style={styles.viewToggle}
-            onPress={() => setViewMode(viewMode === 'list' ? 'map' : 'list')}
-          >
-            <Map size={20} color={colors.primary} />
-          </Pressable>
         </View>
-        
+
         <View style={styles.statusBar}>
           {isAvailable ? (
             <View style={[styles.availableStatus, { backgroundColor: colors.successBackground }]}>
@@ -161,7 +426,7 @@ export default function NearbyScreen() {
                 <View style={styles.personInfo}>
                   <View style={styles.nameRow}>
                     <Text style={[styles.name, { color: colors.text }]}>{person.name}, {person.age}</Text>
-                    <View style={styles.onlineIndicator} />
+                    {person.isOnline && <View style={styles.onlineIndicator} />}
                   </View>
                   <View style={styles.distanceRow}>
                     <MapPin size={14} color={colors.textSecondary} />
@@ -179,32 +444,19 @@ export default function NearbyScreen() {
               </View>
 
               <View style={styles.actions}>
-                <Pressable
-                  style={styles.pingButton}
-                  onPress={() => sendPing(person, 'coffee')}
-                >
-                  <LinearGradient
-                    colors={colors.secondaryGradient}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.pingButtonGradient}
-                  >
-                    <Coffee size={16} color="#FFFFFF" />
-                    <Text style={styles.pingButtonText}>{t('nearby.pingForCoffee')}</Text>
-                  </LinearGradient>
-                </Pressable>
-
-                <Pressable
-                  style={[styles.secondaryPingButton, { borderColor: colors.primary }]}
-                  onPress={() => sendPing(person, 'gaming')}
-                >
-                  <Text style={[styles.secondaryPingButtonText, { color: colors.primary }]}>Gaming?</Text>
-                </Pressable>
+                {getPingButtonContent(person)}
               </View>
             </View>
           ))}
         </ScrollView>
       )}
+
+      <PingIncomingModal
+        ping={incomingPing}
+        visible={showPingModal}
+        onAccept={handleAcceptPing}
+        onIgnore={handleIgnorePing}
+      />
     </SafeAreaView>
   );
 }
@@ -228,9 +480,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: '600',
-  },
-  viewToggle: {
-    padding: 8,
   },
   statusBar: {
     alignItems: 'center',
@@ -369,15 +618,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  secondaryPingButton: {
+  sentPingChip: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 12,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    gap: 6,
   },
-  secondaryPingButtonText: {
+  sentPingText: {
     fontSize: 14,
     fontWeight: '600',
   },
