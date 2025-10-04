@@ -1,0 +1,45 @@
+{
+  "expo": {
+    "name": "Loonies",
+    "slug": "loonies-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "loonies",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Loonies uses your location to find people nearby for safe meetups within 2km.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Loonies uses your location to find people nearby for safe meetups within 2km.",
+        "NSCameraUsageDescription": "Loonies uses your camera for photo verification to ensure a safe community."
+      }
+    },
+    "android": {
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "CAMERA"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-router", 
+      "expo-font", 
+      "expo-web-browser",
+      "expo-camera",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Loonies uses your location to find people nearby for safe meetups within 2km."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
