@@ -39,42 +39,12 @@ export default function NearbyScreen() {
   const [showPingModal, setShowPingModal] = useState(false);
   const [pingCountdowns, setPingCountdowns] = useState<Map<string, string>>(new Map());
 
-  const [nearbyPeople, setNearbyPeople] = useState<NearbyPerson[]>([
-    {
-      id: '11111111-1111-1111-1111-111111111111',
-      name: 'Sarah',
-      age: 28,
-      distance: 0.8,
-      eta: '10 min',
-      activities: ['Dining', 'Sports'],
-      photo: 'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=400',
-      isOnline: true,
-    },
-    {
-      id: '22222222-2222-2222-2222-222222222222',
-      name: 'Michael',
-      age: 32,
-      distance: 1.2,
-      eta: '15 min',
-      activities: ['Sports', 'Fitness'],
-      photo: 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=400',
-      isOnline: true,
-    },
-    {
-      id: '33333333-3333-3333-3333-333333333333',
-      name: 'Emma',
-      age: 25,
-      distance: 0.5,
-      eta: '7 min',
-      activities: ['Dining', 'Art'],
-      photo: 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=400',
-      isOnline: true,
-    },
-  ]);
+  const [nearbyPeople, setNearbyPeople] = useState<NearbyPerson[]>([]);
 
   useEffect(() => {
     getCurrentUser();
     loadActivePings();
+    loadNearbyPeople();
     setupRealtimeListeners();
   }, []);
 
@@ -144,6 +114,42 @@ export default function NearbyScreen() {
 
       setSentPings(pingsMap);
       setAcceptedMatches(matchesMap);
+    }
+  };
+
+  const loadNearbyPeople = async () => {
+    try {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) return;
+
+      // Hent andre brugere fra profiles (undtagen dig selv)
+      const { data: profiles, error } = await supabase
+        .from('profiles')
+        .select('id, first_name, age, photo_url')
+        .neq('id', user.user.id)
+        .limit(10);
+
+      if (error) {
+        console.error('Error loading nearby people:', error);
+        return;
+      }
+
+      if (profiles && profiles.length > 0) {
+        const nearbyList: NearbyPerson[] = profiles.map((profile, index) => ({
+          id: profile.id,
+          name: profile.first_name || 'Unknown',
+          age: profile.age || 25,
+          distance: 0.5 + (index * 0.3), // Mock distance
+          eta: `${5 + (index * 5)} min`,
+          activities: ['Dining', 'Sports'],
+          photo: profile.photo_url || 'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=400',
+          isOnline: true,
+        }));
+
+        setNearbyPeople(nearbyList);
+      }
+    } catch (err) {
+      console.error('Error in loadNearbyPeople:', err);
     }
   };
 

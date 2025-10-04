@@ -146,21 +146,7 @@ export async function getActivePings(): Promise<{
 
     const { data, error } = await supabase
       .from('pings')
-      .select(`
-        *,
-        from_profile:profiles!pings_from_user_fkey(
-          id,
-          first_name,
-          age,
-          photo_url
-        ),
-        to_profile:profiles!pings_to_user_fkey(
-          id,
-          first_name,
-          age,
-          photo_url
-        )
-      `)
+      .select('*')
       .or(`from_user.eq.${user.user.id},to_user.eq.${user.user.id}`)
       .in('status', ['pending', 'accepted'])
       .gt('expires_at', new Date().toISOString())
@@ -191,21 +177,7 @@ export async function getActiveMatches(): Promise<{
 
     const { data, error } = await supabase
       .from('matches')
-      .select(`
-        *,
-        profile_a:profiles!matches_user_a_fkey(
-          id,
-          first_name,
-          age,
-          photo_url
-        ),
-        profile_b:profiles!matches_user_b_fkey(
-          id,
-          first_name,
-          age,
-          photo_url
-        )
-      `)
+      .select('*')
       .or(`user_a.eq.${user.user.id},user_b.eq.${user.user.id}`)
       .gt('expires_at', new Date().toISOString())
       .order('created_at', { ascending: false });
