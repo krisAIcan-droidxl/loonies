@@ -1,72 +1,25 @@
-export interface User {
-  id: string;
-  firstName: string;
-  age: number;
-  gender?: string;
-  photo?: string;
-  activities: string[];
-  mode: 'solo' | 'duo' | 'group';
-  isOnline: boolean;
-  isAvailable: boolean;
-  availableUntil?: Date;
-  location: {
-    latitude: number;
-    longitude: number;
-  };
-  createdAt: Date;
-  isVerified: boolean;
-}
+export * from './shared/enums';
+export * from './shared/base';
 
-export interface Group {
-  id: string;
-  name: string;
-  members: User[];
-  activities: string[];
-  isPublic: boolean;
-  maxSize: number;
-  createdBy: string;
-  location: {
-    latitude: number;
-    longitude: number;
-  };
-  isOnline: boolean;
-  createdAt: Date;
-}
+export * from './core/auth';
+export * from './core/user';
+export * from './core/presence';
+export * from './core/group';
 
-export interface Ping {
-  id: string;
-  fromUserId: string;
-  toUserId?: string;
-  toGroupId?: string;
-  activity: string;
-  message: string;
-  status: 'pending' | 'accepted' | 'declined' | 'expired';
-  expiresAt: Date;
-  createdAt: Date;
-}
+export * from './matching/ping';
+export * from './matching/match';
 
-export interface ChatSession {
-  id: string;
-  participants: string[];
-  messages: Message[];
-  expiresAt: Date;
-  isActive: boolean;
-  createdAt: Date;
-}
+export * from './chat/session';
 
-export interface Message {
-  id: string;
-  sessionId: string;
-  senderId: string;
-  text: string;
-  createdAt: Date;
-}
+export * from './safety/checkin';
 
-export interface SafetyFeature {
-  id: string;
-  userId: string;
-  type: 'check_in' | 'sos' | 'location_share';
-  status: 'active' | 'inactive';
-  expiresAt?: Date;
-  metadata?: Record<string, any>;
-}
+export * from './lobby/lobby';
+
+export * from './monetization/subscription';
+
+export * from './config';
+export * from './utils';
+
+export * from './monetization';
+export * from './ping';
+export * from './lobby';
