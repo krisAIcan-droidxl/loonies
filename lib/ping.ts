@@ -1,21 +1,22 @@
 import { supabase } from './supabase';
-import { Ping, Match, PingActivity } from '@/types/ping';
+import { Ping, PingStatus, ActivityTag, CreatePingRequest } from '@/types';
 
 /**
  * Send et ping til en anden bruger
  */
 export async function sendPing(
   toUserId: string,
-  activity: PingActivity = 'coffee'
+  activity: ActivityTag = ActivityTag.COFFEE,
+  message: string = 'Lad os mødes!'
 ): Promise<{ data: Ping | null; error: Error | null }> {
   try {
     // Tjek om der allerede er et aktivt ping til denne bruger
     const { data: existingPings } = await supabase
       .from('pings')
       .select('*')
-      .eq('to_user', toUserId)
-      .eq('activity', activity)
-      .eq('status', 'pending')
+      .eq('to_user_id', toUserId)
+      .eq('activity_tag', activity)
+      .eq('status', PingStatus.PENDING)
       .gt('expires_at', new Date().toISOString());
 
     if (existingPings && existingPings.length > 0) {
@@ -31,12 +32,18 @@ export async function sendPing(
       return { data: null, error: new Error('Ikke logget ind') };
     }
 
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 15);
+
     const { data, error } = await supabase
       .from('pings')
       .insert({
-        from_user: user.user.id,
-        to_user: toUserId,
-        activity,
+        from_user_id: user.user.id,
+        to_user_id: toUserId,
+        activity_tag: activity,
+        message,
+        status: PingStatus.PENDING,
+        expires_at: expiresAt.toISOString(),
       })
       .select()
       .single();
@@ -56,7 +63,7 @@ export async function sendPing(
  */
 export async function acceptPing(
   pingId: string
-): Promise<{ data: Match | null; error: Error | null }> {
+): Promise<{ data: any | null; error: Error | null }> {
   try {
     // Hent ping
     const { data: ping, error: pingError } = await supabase
@@ -73,7 +80,7 @@ export async function acceptPing(
     if (new Date(ping.expires_at) < new Date()) {
       await supabase
         .from('pings')
-        .update({ status: 'expired' })
+        .update({ status: PingStatus.EXPIRED })
         .eq('id', pingId);
       return { data: null, error: new Error('Pinget er udløbet') };
     }
@@ -81,20 +88,27 @@ export async function acceptPing(
     // Opdater ping status
     const { error: updateError } = await supabase
       .from('pings')
-      .update({ status: 'accepted' })
+      .update({
+        status: PingStatus.ACCEPTED,
+        responded_at: new Date().toISOString()
+      })
       .eq('id', pingId);
 
     if (updateError) {
       return { data: null, error: new Error(updateError.message) };
     }
 
-    // Opret match
+    // Opret match med 24h udløb
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 24);
+
     const { data: match, error: matchError } = await supabase
       .from('matches')
       .insert({
-        user_a: ping.from_user,
-        user_b: ping.to_user,
-        activity: ping.activity,
+        user_a: ping.from_user_id,
+        user_b: ping.to_user_id,
+        ping_id: pingId,
+        expires_at: expiresAt.toISOString(),
       })
       .select()
       .single();
@@ -103,7 +117,7 @@ export async function acceptPing(
       return { data: null, error: new Error(matchError.message) };
     }
 
-    return { data: match as Match, error: null };
+    return { data: match, error: null };
   } catch (err) {
     return { data: null, error: err as Error };
   }
@@ -112,13 +126,16 @@ export async function acceptPing(
 /**
  * Ignorér et indgående ping
  */
-export async function ignorePing(
+export async function declinePing(
   pingId: string
 ): Promise<{ error: Error | null }> {
   try {
     const { error } = await supabase
       .from('pings')
-      .update({ status: 'ignored' })
+      .update({
+        status: PingStatus.DECLINED,
+        responded_at: new Date().toISOString()
+      })
       .eq('id', pingId);
 
     if (error) {
@@ -147,8 +164,8 @@ export async function getActivePings(): Promise<{
     const { data, error } = await supabase
       .from('pings')
       .select('*')
-      .or(`from_user.eq.${user.user.id},to_user.eq.${user.user.id}`)
-      .in('status', ['pending', 'accepted'])
+      .or(`from_user_id.eq.${user.user.id},to_user_id.eq.${user.user.id}`)
+      .in('status', [PingStatus.PENDING, PingStatus.ACCEPTED])
       .gt('expires_at', new Date().toISOString())
       .order('created_at', { ascending: false });
 
