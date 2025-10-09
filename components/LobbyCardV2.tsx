@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Clock, MapPin, Users, Check } from 'lucide-react-native';
 
 interface LobbyCardV2Props {
   lobby: {
@@ -30,27 +31,38 @@ export default function LobbyCardV2({ lobby, onPress, onJoinPress }: LobbyCardV2
   const progress = (lobby.currentParticipants / lobby.maxParticipants) * 100;
   const isFull = lobby.currentParticipants >= lobby.maxParticipants;
 
+  const formatDateTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const day = date.getDate();
+    const month = date.toLocaleDateString('da-DK', { month: 'short' });
+    const time = date.toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' });
+    return { day, month, time };
+  };
+
+  const { day, month, time } = formatDateTime(lobby.scheduledTime);
+
   const getStatusText = () => {
     if (lobby.status === 'open' && !isFull) return 'ÅBEN';
     if (isFull) return 'Næsten fuld';
     return lobby.status.toUpperCase();
   };
 
-  const getButtonText = () => {
-    if (lobby.isPaid && lobby.pricePerSeat) {
-      return `${lobby.pricePerSeat} ${lobby.currency || 'DKK'}`;
-    }
-    return 'Jeinn';
-  };
-
   return (
     <Pressable onPress={onPress} style={styles.container}>
       <View style={styles.card}>
+        {/* Header */}
         <View style={styles.header}>
           <View style={styles.hostInfo}>
             <Image source={{ uri: lobby.host.photo }} style={styles.avatar} />
             <View style={styles.hostText}>
-              <Text style={styles.hostName}>{lobby.host.name}</Text>
+              <View style={styles.hostNameRow}>
+                <Text style={styles.hostName}>{lobby.host.name}</Text>
+                {lobby.host.isVerified && (
+                  <View style={styles.verifiedBadge}>
+                    <Check size={14} color="#4BC8B4" strokeWidth={3} />
+                  </View>
+                )}
+              </View>
               <Text style={styles.hostLabel}>Vært</Text>
             </View>
           </View>
@@ -60,55 +72,77 @@ export default function LobbyCardV2({ lobby, onPress, onJoinPress }: LobbyCardV2
           </View>
         </View>
 
+        {/* Title */}
         <Text style={styles.title}>{lobby.title}</Text>
 
+        {/* Description */}
         <Text style={styles.description} numberOfLines={3}>
           {lobby.description}
         </Text>
 
+        {/* Activity Tags */}
         <View style={styles.tagsRow}>
           {lobby.activityTags.slice(0, 2).map((tag, index) => (
             <View key={index} style={styles.tag}>
-              <View style={styles.tagDot} />
               <Text style={styles.tagText}>{tag}</Text>
             </View>
           ))}
-          {lobby.locationName && (
-            <View style={styles.tag}>
-              <View style={styles.tagDot} />
-              <Text style={styles.tagText}>{lobby.locationName}</Text>
-            </View>
-          )}
         </View>
 
-        <View style={styles.bottom}>
-          <View style={styles.participantsSection}>
-            <Text style={styles.participantsText}>
-              {lobby.currentParticipants}/{lobby.maxParticipants} tilmeldt
+        {/* Info Rows */}
+        <View style={styles.infoSection}>
+          <View style={styles.infoRow}>
+            <Clock size={18} color="rgba(255, 255, 255, 0.6)" strokeWidth={2} />
+            <Text style={styles.infoText}>
+              {day}. {month}. • {time}
             </Text>
-
-            <View style={styles.progressBarBg}>
-              <View style={[styles.progressBarFill, { width: `${Math.min(progress, 100)}%` }]} />
-            </View>
           </View>
 
-          <Pressable style={styles.joinButton} onPress={onJoinPress}>
-            {lobby.isPaid && lobby.pricePerSeat ? (
-              <LinearGradient
-                colors={['#FFB347', '#FF8A5C']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.buttonGradient}
-              >
-                <Text style={styles.buttonText}>{getButtonText()}</Text>
-              </LinearGradient>
-            ) : (
-              <View style={[styles.buttonGradient, { backgroundColor: 'rgba(255, 255, 255, 0.1)' }]}>
-                <Text style={styles.buttonText}>{getButtonText()}</Text>
+          {lobby.locationName && (
+            <View style={styles.infoRow}>
+              <MapPin size={18} color="rgba(255, 255, 255, 0.6)" strokeWidth={2} />
+              <Text style={styles.infoText}>{lobby.locationName}</Text>
+            </View>
+          )}
+
+          <View style={styles.infoRow}>
+            <Users size={18} color="rgba(255, 255, 255, 0.6)" strokeWidth={2} />
+            <Text style={styles.infoText}>
+              {lobby.currentParticipants}/{lobby.maxParticipants} deltagere
+            </Text>
+            {lobby.isPaid && lobby.pricePerSeat && (
+              <View style={styles.pricePill}>
+                <LinearGradient
+                  colors={['#FFB347', '#FF8A5C']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.priceGradient}
+                >
+                  <Text style={styles.priceText}>
+                    {lobby.pricePerSeat} {lobby.currency || 'EUR'}
+                  </Text>
+                </LinearGradient>
               </View>
             )}
-          </Pressable>
+          </View>
         </View>
+
+        {/* Progress Bar */}
+        <View style={styles.progressBarBg}>
+          <View style={[styles.progressBarFill, { width: `${Math.min(progress, 100)}%` }]} />
+        </View>
+
+        {/* Join Button */}
+        <Pressable onPress={onJoinPress}>
+          <LinearGradient
+            colors={['#9D8CFF', '#8B7FFF']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.joinButton}
+          >
+            <Text style={styles.joinButtonText}>Join</Text>
+          </LinearGradient>
+        </Pressable>
       </View>
     </Pressable>
   );
@@ -125,17 +159,18 @@ const styles = StyleSheet.create({
     padding: 20,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.05)',
+    gap: 16,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 20,
   },
   hostInfo: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    flex: 1,
   },
   avatar: {
     width: 56,
@@ -144,12 +179,25 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
   hostText: {
-    gap: 2,
+    gap: 4,
+  },
+  hostNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   hostName: {
     fontSize: 20,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  verifiedBadge: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: 'rgba(75, 200, 180, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   hostLabel: {
     fontSize: 14,
@@ -172,7 +220,6 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
     color: '#FFFFFF',
-    marginBottom: 12,
     lineHeight: 32,
   },
   description: {
@@ -180,69 +227,73 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     color: 'rgba(255, 255, 255, 0.7)',
     lineHeight: 22,
-    marginBottom: 16,
   },
   tagsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 20,
-  },
-  tag: {
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: 8,
   },
-  tagDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#8B7FFF',
+  tag: {
+    backgroundColor: 'rgba(139, 127, 255, 0.15)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(139, 127, 255, 0.3)',
   },
   tagText: {
     fontSize: 14,
+    fontWeight: '600',
+    color: '#8B7FFF',
+  },
+  infoSection: {
+    gap: 12,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  infoText: {
+    fontSize: 15,
     fontWeight: '400',
     color: 'rgba(255, 255, 255, 0.8)',
-  },
-  bottom: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    gap: 16,
-  },
-  participantsSection: {
     flex: 1,
-    gap: 8,
   },
-  participantsText: {
-    fontSize: 16,
-    fontWeight: '600',
+  pricePill: {
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  priceGradient: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+  },
+  priceText: {
+    fontSize: 14,
+    fontWeight: '700',
     color: '#FFFFFF',
   },
   progressBarBg: {
-    height: 8,
+    height: 6,
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 4,
+    borderRadius: 3,
     overflow: 'hidden',
   },
   progressBarFill: {
-    height: 8,
+    height: 6,
     backgroundColor: '#8B7FFF',
-    borderRadius: 4,
+    borderRadius: 3,
   },
   joinButton: {
-    minWidth: 100,
-  },
-  buttonGradient: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
+    paddingVertical: 16,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  buttonText: {
-    fontSize: 16,
+  joinButtonText: {
+    fontSize: 17,
     fontWeight: '700',
     color: '#FFFFFF',
+    letterSpacing: 0.3,
   },
 });
