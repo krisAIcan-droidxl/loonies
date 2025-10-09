@@ -16,6 +16,8 @@ import { useTheme } from '@/hooks/useTheme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { DinnerLobby, LobbyParticipant } from '@/types/lobby';
 import LobbyCard from '@/components/LobbyCard';
+import LobbyCardV2 from '@/components/LobbyCardV2';
+import LobbiesHeader from '@/components/LobbiesHeader';
 import CreateLobbyModal from '@/components/CreateLobbyModal';
 import LobbyDetailsModal from '@/components/LobbyDetailsModal';
 import type { LobbyFormData } from '@/components/CreateLobbyModal';
@@ -274,56 +276,61 @@ export default function LobbiesScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+    <View style={styles.container}>
       <LinearGradient
-        colors={colors.primaryGradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.headerGradient}
+        colors={['#0B0B16', '#12121F']}
+        style={styles.gradient}
       >
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <Text style={styles.title}>{t('lobbies.title')}</Text>
-            <View style={styles.subtitleRow}>
-              <Sparkles size={14} color="rgba(255,255,255,0.8)" />
-              <Text style={styles.subtitle}>{t('lobbies.subtitle')}</Text>
-            </View>
-          </View>
-          <Pressable style={styles.createButton} onPress={() => setCreateModalVisible(true)}>
-            <LinearGradient
-              colors={colors.secondaryGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.createButtonGradient}
-            >
-              <Plus size={26} color="#FFFFFF" />
-            </LinearGradient>
-          </Pressable>
-        </View>
-      </LinearGradient>
+        <SafeAreaView style={styles.safeArea} edges={['top']}>
+          <LobbiesHeader onCreatePress={() => setCreateModalVisible(true)} />
 
-      <ScrollView
-        style={styles.content}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />
-        }
-      >
-        {loading ? (
-          <View style={styles.emptyState}>
-            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>{t('common.loading')}</Text>
-          </View>
-        ) : lobbies.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={[styles.emptyTitle, { color: colors.text }]}>{t('lobbies.noLobbies')}</Text>
-            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>{t('lobbies.noLobbiesDescription')}</Text>
-          </View>
-        ) : (
-          lobbies.map((lobby) => (
-            <LobbyCard key={lobby.id} lobby={lobby} onPress={() => handleLobbyPress(lobby)} />
-          ))
-        )}
-      </ScrollView>
+          <ScrollView
+            style={styles.content}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#8B7FFF" />
+            }
+          >
+            {loading ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyText}>{t('common.loading')}</Text>
+              </View>
+            ) : lobbies.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyTitle}>{t('lobbies.noLobbies')}</Text>
+                <Text style={styles.emptyText}>{t('lobbies.noLobbiesDescription')}</Text>
+              </View>
+            ) : (
+              lobbies.map((lobby) => (
+                <LobbyCardV2
+                  key={lobby.id}
+                  lobby={{
+                    id: lobby.id,
+                    title: lobby.title,
+                    description: lobby.description || '',
+                    host: {
+                      name: lobby.host?.first_name || 'Ukendt',
+                      photo: lobby.host?.photo_url || 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg',
+                      isVerified: true,
+                    },
+                    activityTags: [lobby.lobby_type, lobby.cuisine_type || lobby.activity_type].filter(Boolean) as string[],
+                    currentParticipants: lobby.current_participants || 0,
+                    maxParticipants: lobby.max_participants || 4,
+                    isPaid: lobby.is_paid || false,
+                    pricePerSeat: lobby.price_per_seat ? Number(lobby.price_per_seat) : undefined,
+                    currency: lobby.currency || 'DKK',
+                    scheduledTime: lobby.scheduled_time,
+                    locationName: lobby.location_name || undefined,
+                    status: lobby.status as any,
+                  }}
+                  onPress={() => handleLobbyPress(lobby)}
+                  onJoinPress={() => handleJoinLobby()}
+                />
+              ))
+            )}
+          </ScrollView>
+        </SafeAreaView>
+      </LinearGradient>
 
       <CreateLobbyModal
         visible={createModalVisible}
@@ -340,61 +347,23 @@ export default function LobbiesScreen() {
         isParticipant={selectedLobby ? isUserParticipant(selectedLobby) : false}
         currentUserId={currentUserId}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F3FF',
+    backgroundColor: '#0B0B16',
   },
-  headerGradient: {
-    paddingBottom: 24,
-    paddingTop: 12,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-  },
-  headerLeft: {
+  gradient: {
     flex: 1,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    marginBottom: 6,
-  },
-  subtitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  subtitle: {
-    fontSize: 15,
-    color: 'rgba(255,255,255,0.9)',
-    fontWeight: '500',
-  },
-  createButton: {
-    shadowColor: '#FF6B6B',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 16,
-    elevation: 10,
-  },
-  createButtonGradient: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
+  safeArea: {
+    flex: 1,
   },
   content: {
     flex: 1,
-    padding: 20,
     paddingTop: 0,
   },
   emptyState: {
@@ -402,16 +371,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 80,
+    paddingHorizontal: 32,
   },
   emptyTitle: {
     fontSize: 24,
     fontWeight: '800',
-    color: '#667EEA',
+    color: '#8B7FFF',
     marginBottom: 12,
   },
   emptyText: {
     fontSize: 17,
-    color: '#9CA3AF',
+    color: 'rgba(255, 255, 255, 0.5)',
     textAlign: 'center',
     fontWeight: '500',
   },
