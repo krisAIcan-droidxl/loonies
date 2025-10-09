@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Users, MessageCircle, User, Shield, UtensilsCrossed, MapPin, Crown } from 'lucide-react-native';
+import { Users, MessageCircle, User, Shield, UtensilsCrossed, MapPin, Crown, Zap } from 'lucide-react-native';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useTheme } from '@/hooks/useTheme';
 
@@ -41,6 +41,15 @@ export default function TabLayout() {
           title: t('tabs.nearby'),
           tabBarIcon: ({ size, color }) => (
             <Users size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="synchronicity"
+        options={{
+          title: 'Sync',
+          tabBarIcon: ({ size, color }) => (
+            <Zap size={size} color={color} />
           ),
         }}
       />
