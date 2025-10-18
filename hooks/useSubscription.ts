@@ -20,6 +20,8 @@ export function useSubscription() {
         return;
       }
 
+      let resolvedPlan: SubscriptionPlan | null = null;
+
       const { data: subData } = await supabase
         .from('user_subscriptions')
         .select(`
@@ -31,7 +33,7 @@ export function useSubscription() {
 
       if (subData) {
         setSubscription(subData);
-        setPlan(subData.plan);
+        resolvedPlan = subData.plan ?? null;
       } else {
         const { data: freePlan } = await supabase
           .from('subscription_plans')
@@ -39,8 +41,10 @@ export function useSubscription() {
           .eq('name', 'free')
           .single();
 
-        setPlan(freePlan);
+        resolvedPlan = freePlan;
       }
+
+      setPlan(resolvedPlan);
 
       const { data: limitsData } = await supabase
         .from('usage_limits')
@@ -48,10 +52,11 @@ export function useSubscription() {
         .eq('user_id', user.id)
         .maybeSingle();
 
+      const dailyLimit = resolvedPlan?.features.daily_pings ?? 5;
+
       if (limitsData) {
         const today = new Date().toISOString().split('T')[0];
         if (limitsData.last_reset_date !== today) {
-          const dailyLimit = plan?.features.daily_pings || 5;
           const { data: resetData } = await supabase
             .from('usage_limits')
             .update({
@@ -68,7 +73,6 @@ export function useSubscription() {
           setUsageLimits(limitsData);
         }
       } else {
-        const dailyLimit = plan?.features.daily_pings || 5;
         const { data: newLimits } = await supabase
           .from('usage_limits')
           .insert({
